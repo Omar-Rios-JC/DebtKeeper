@@ -8,6 +8,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -15,6 +16,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.debtkeeper.PersonasViewModel
 import com.example.debtkeeper.data.DebtEntity
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.ui.text.input.KeyboardType
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -31,6 +37,7 @@ fun esFechaValida(fecha: String): Boolean {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun PersonaCard(
@@ -57,6 +64,9 @@ fun PersonaCard(
     val grisClaro = Color(0xFFF8F9FA)
     val textoPrincipal = Color(0xFF0B3D2E)
     val textoSecundario = Color(0xFF145A32)
+
+    var mostrarSelectorFecha by remember { mutableStateOf(false) }
+
 
 
 
@@ -161,7 +171,10 @@ fun PersonaCard(
                                 value = montoPago,
                                 onValueChange = { montoPago = it },
                                 label = { Text("Monto abonado") },
-                                singleLine = true
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions.Default.copy(
+                                        keyboardType = KeyboardType.Number
+                                )
                             )
 
                             Spacer(Modifier.height(8.dp))
@@ -170,8 +183,34 @@ fun PersonaCard(
                                 value = fechaPago,
                                 onValueChange = { fechaPago = it },
                                 label = { Text("Fecha (dd/MM/yyyy)") },
-                                singleLine = true
+                                readOnly = true,
                             )
+
+                            Spacer(Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Button(onClick = {
+                                    mostrarSelectorFecha = true
+                                }) {
+                                    Text("Seleccionar Fecha")
+                                }
+                            }
+
+
+                            if (mostrarSelectorFecha) {
+                                MostrarDatePicker(
+                                    onFechaSeleccionada = { fecha ->
+                                        fechaPago = fecha
+                                    },
+                                    onCerrar = {
+                                        mostrarSelectorFecha = false
+                                    }
+                                )
+                            }
+
                         }
                     },
                     confirmButton = {
@@ -283,5 +322,45 @@ fun PersonaCard(
 
 
         }
+    }
+
+}
+@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MostrarDatePicker(
+    onFechaSeleccionada: (String) -> Unit,
+    onCerrar: () -> Unit
+) {
+    val datePickerState = rememberDatePickerState()
+
+    DatePickerDialog(
+        onDismissRequest = onCerrar,
+        confirmButton = {
+            TextButton(onClick = {
+                val millis = datePickerState.selectedDateMillis
+                if (millis != null) {
+                    val fecha = java.time.Instant.ofEpochMilli(millis)
+                        .atZone(java.time.ZoneId.systemDefault())
+                        .toLocalDate()
+
+                    val fechaFinal = fecha.format(
+                        java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                    )
+
+                    onFechaSeleccionada(fechaFinal)
+                }
+                onCerrar()
+            }) {
+                Text("Aceptar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCerrar) {
+                Text("Cancelar")
+            }
+        }
+    ) {
+        DatePicker(state = datePickerState)
     }
 }
