@@ -28,13 +28,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.debtkeeper.data.DebtEntity
 import com.example.debtkeeper.ui.theme.DebtKeeperTheme
-<<<<<<< HEAD
-=======
-
-import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
->>>>>>> main
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -226,7 +219,6 @@ fun AgregarPersonaPantalla(navController: NavHostController, viewModel: Personas
     var nombre by remember { mutableStateOf("") }
     var monto by remember { mutableStateOf("") }
 
-<<<<<<< HEAD
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -237,58 +229,6 @@ fun AgregarPersonaPantalla(navController: NavHostController, viewModel: Personas
                     }
                 }
             )
-=======
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text("Agregar nueva persona", style = MaterialTheme.typography.headlineSmall)
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = nombre,
-            onValueChange = { nombre = it },
-            label = { Text("Nombre") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = monto,
-            onValueChange = { monto = it },
-            label = { Text("Monto de la deuda") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions.Default.copy(
-                keyboardType = KeyboardType.Number
-            )
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick = {
-
-                val montoDouble = monto.toDoubleOrNull() ?: return@Button
-
-                val nuevaPersona = DebtEntity(
-                    nombre = nombre,
-                    totalDeuda = montoDouble,
-                    restante = montoDouble,
-                    saldada = false
-                )
-
-                viewModel.agregarPersona(nuevaPersona)
-                navController.popBackStack()
-                if (nombre.isBlank()) return@Button
-
-            }
-        ) {
-            Text("Agregar")
->>>>>>> main
         }
     ) { padding ->
         Column(

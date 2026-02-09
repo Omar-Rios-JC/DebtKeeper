@@ -9,14 +9,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-<<<<<<< HEAD
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
-=======
->>>>>>> main
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,7 +24,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.debtkeeper.data.DebtEntity
-<<<<<<< HEAD
 import java.time.format.DateTimeFormatter
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -40,30 +36,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-=======
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.ui.text.input.KeyboardType
 
-
-@RequiresApi(Build.VERSION_CODES.O)
-fun esFechaValida(fecha: String): Boolean {
-    val regex = Regex("""\d{2}/\d{2}/\d{4}""")
-    if (!regex.matches(fecha)) return false
-
-    return try {
-        val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
-        java.time.LocalDate.parse(fecha, formatter)
-        true
-    } catch (_: Exception) {
-        false
-    }
-}
->>>>>>> main
-
-@OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,29 +52,10 @@ fun PersonaCard(
     var montoPago by remember { mutableStateOf("") }
     var fechaPago by remember { mutableStateOf("") }
     var nuevoMonto by remember { mutableStateOf("") }
-<<<<<<< HEAD
     var mostrarSelectorFecha by remember { mutableStateOf(false) }
     val pagos by viewModel.obtenerPagosPorDeuda(persona.id).collectAsState(initial = emptyList())
     val pagado = persona.totalDeuda - persona.restante
     val progreso = if (persona.totalDeuda > 0) (pagado / persona.totalDeuda).toFloat() else 0f
-=======
-
-    var mostrarDialogoEliminar by remember { mutableStateOf(false) }
-
-    val pagos by viewModel
-        .obtenerPagosPorDeuda(persona.id)
-        .collectAsState(initial = emptyList())
-
-
-    val grisClaro = Color(0xFFF8F9FA)
-    val textoPrincipal = Color(0xFF0B3D2E)
-    val textoSecundario = Color(0xFF145A32)
-
-    var mostrarSelectorFecha by remember { mutableStateOf(false) }
-
-
-
->>>>>>> main
 
     Card(
         modifier = modifier
@@ -276,7 +230,6 @@ fun PersonaCard(
                         fechaPago = ""
                         mostrarDialogo = false
                     }
-<<<<<<< HEAD
                 }) { Text("Guardar") }
             },
             dismissButton = { TextButton(onClick = { mostrarDialogo = false }) { Text("Cancelar") } }
@@ -331,184 +284,6 @@ fun PersonaCard(
 
 }
 
-=======
-
-                } else {
-                    Button(
-                        onClick = { mostrarDialogo = true }
-                    ) {
-                        Text("Registrar pago")
-                    }
-                }
-            }
-
-            if (mostrarDialogo) {
-                AlertDialog(
-                    onDismissRequest = { mostrarDialogo = false },
-                    title = { Text("Registrar pago") },
-                    text = {
-                        Column {
-
-                            OutlinedTextField(
-                                value = montoPago,
-                                onValueChange = { montoPago = it },
-                                label = { Text("Monto abonado") },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions.Default.copy(
-                                        keyboardType = KeyboardType.Number
-                                )
-                            )
-
-                            Spacer(Modifier.height(8.dp))
-
-                            OutlinedTextField(
-                                value = fechaPago,
-                                onValueChange = { fechaPago = it },
-                                label = { Text("Fecha (dd/MM/yyyy)") },
-                                readOnly = true,
-                            )
-
-                            Spacer(Modifier.height(8.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Button(onClick = {
-                                    mostrarSelectorFecha = true
-                                }) {
-                                    Text("Seleccionar Fecha")
-                                }
-                            }
-
-
-                            if (mostrarSelectorFecha) {
-                                MostrarDatePicker(
-                                    onFechaSeleccionada = { fecha ->
-                                        fechaPago = fecha
-                                    },
-                                    onCerrar = {
-                                        mostrarSelectorFecha = false
-                                    }
-                                )
-                            }
-
-                        }
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                val monto = montoPago.toDoubleOrNull() ?: return@Button
-                                if (fechaPago.isBlank()) return@Button
-
-                                viewModel.registrarPago(
-                                    deuda = persona,
-                                    monto = monto,
-                                    fecha = fechaPago
-                                )
-
-                                montoPago = ""
-                                fechaPago = ""
-                                mostrarDialogo = false
-                            }
-
-                        ) {
-                            Text("Guardar")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { mostrarDialogo = false }) {
-                            Text("Cancelar")
-                        }
-                    }
-                )
-            }
-            if (mostrarDialogoEliminar) {
-                AlertDialog(
-                    onDismissRequest = { mostrarDialogoEliminar = false },
-                    title = { Text("Eliminar deuda") },
-                    text = {
-                        Text("¿Seguro que deseas eliminar esta deuda? Esta acción no se puede deshacer.")
-                    },
-                    confirmButton = {
-                        Button(
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error
-                            ),
-                            onClick = {
-                                viewModel.eliminarPersona(persona)
-                                mostrarDialogoEliminar = false
-                            }
-                        ) {
-                            Text("Eliminar")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(
-                            onClick = { mostrarDialogoEliminar = false }
-                        ) {
-                            Text("Cancelar")
-                        }
-                    }
-                )
-            }
-            if (mostrarDialogoReactivar) {
-                AlertDialog(
-                    onDismissRequest = { mostrarDialogoReactivar = false },
-                    title = { Text("Reactivar deuda") },
-                    text = {
-                        Column {
-
-                            Text(
-                                "Ingresa el nuevo monto de la deuda.\n\n" +
-                                        "⚠️ Esta acción modificará la deuda actual.\n" +
-                                        "Si deseas conservar el historial intacto, " +
-                                        "es recomendable crear una nueva deuda."
-                            )
-
-                            Spacer(Modifier.height(12.dp))
-
-                            OutlinedTextField(
-                                value = nuevoMonto,
-                                onValueChange = { nuevoMonto = it },
-                                label = { Text("Nuevo monto") },
-                                singleLine = true
-                            )
-                        }
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                val monto = nuevoMonto.toDoubleOrNull() ?: return@Button
-
-                                viewModel.reactivarDeuda(
-                                    persona = persona,
-                                    nuevoMonto = monto
-                                )
-
-                                nuevoMonto = ""
-                                mostrarDialogoReactivar = false
-                            }
-                        ) {
-                            Text("Confirmar")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { mostrarDialogoReactivar = false }) {
-                            Text("Cancelar")
-                        }
-                    }
-                )
-            }
-
-
-
-        }
-    }
-
-}
-@RequiresApi(Build.VERSION_CODES.O)
->>>>>>> main
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MostrarDatePicker(
@@ -521,25 +296,11 @@ fun MostrarDatePicker(
         onDismissRequest = onCerrar,
         confirmButton = {
             TextButton(onClick = {
-<<<<<<< HEAD
                 val selectedDate = datePickerState.selectedDateMillis
                 if (selectedDate != null) {
                     val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                     formatter.timeZone = TimeZone.getTimeZone("UTC")
                     onFechaSeleccionada(formatter.format(Date(selectedDate)))
-=======
-                val millis = datePickerState.selectedDateMillis
-                if (millis != null) {
-                    val fecha = java.time.Instant.ofEpochMilli(millis)
-                        .atZone(java.time.ZoneId.systemDefault())
-                        .toLocalDate()
-
-                    val fechaFinal = fecha.format(
-                        java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
-                    )
-
-                    onFechaSeleccionada(fechaFinal)
->>>>>>> main
                 }
                 onCerrar()
             }) {

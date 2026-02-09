@@ -71,6 +71,6 @@ dependencies {
 
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
-    implementation("androidx.compose.material3:material3:1.2.1")
+
 
 }
