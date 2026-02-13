@@ -5,11 +5,13 @@ import androidx.annotation.RequiresApi
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -50,7 +52,7 @@ fun PersonaCard(
     var mostrarDialogoEliminar by remember { mutableStateOf(false) }
     var mostrarDialogoReactivar by remember { mutableStateOf(false) }
     var montoPago by remember { mutableStateOf("") }
-    var fechaPago by remember { mutableStateOf("") }
+    var fechaPago by remember { mutableStateOf("Seleccionar Fecha") }
     var nuevoMonto by remember { mutableStateOf("") }
     var mostrarSelectorFecha by remember { mutableStateOf(false) }
     val pagos by viewModel.obtenerPagosPorDeuda(persona.id).collectAsState(initial = emptyList())
@@ -201,18 +203,32 @@ fun PersonaCard(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true
                     )
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = fechaPago,
-                        onValueChange = { fechaPago = it },
-                        label = { Text("Fecha") },
-                        readOnly = true,
-                        trailingIcon = {
-                            IconButton(onClick = { mostrarSelectorFecha = true }) {
-                                Text("Seleccionar")
-                            }
-                        }
-                    )
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Button(
+                        onClick = { mostrarSelectorFecha = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(4.dp),
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline // El color exacto del borde del TextField
+                        ),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color.Transparent, // Fondo transparente como el TextField
+                            contentColor = MaterialTheme.colorScheme.onSurface // Color del texto
+                        )
+                    ) {
+                        Text(text = fechaPago)
+                        // Este Spacer empuja todo lo que viene después a la derecha
+                        Spacer(Modifier.weight(1f))
+                        Icon(
+                            imageVector = Icons.Filled.CalendarToday,
+                            contentDescription = "Seleccionar fecha"
+                        )
+                    }
                     if (mostrarSelectorFecha) {
                         MostrarDatePicker(
                             onFechaSeleccionada = { fechaPago = it },
