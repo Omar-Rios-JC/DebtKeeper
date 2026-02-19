@@ -11,5 +11,13 @@ data class DebtEntity(
     val nombre: String,
     val totalDeuda: Double,
     val restante: Double,
+    val tasaInteres: Double = 0.0,
+    val tipoInteres: String = "Mensual",
+    val plazoPagos: Int,
+    val interesAcumulado: Double = 0.0,
+    val interesAplicado: Boolean = false,
     val saldada: Boolean = false
+
+    //var fechaCreacion: LocalDate,
+    //var ultimaActualizacionInteres: LocalDate? = null,
 )

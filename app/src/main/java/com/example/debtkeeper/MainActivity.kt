@@ -5,17 +5,23 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -29,6 +35,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.debtkeeper.data.DebtEntity
 import com.example.debtkeeper.ui.theme.DebtKeeperTheme
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
@@ -213,11 +220,23 @@ fun TutorialDialog(onDismiss: () -> Unit) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AgregarPersonaPantalla(navController: NavHostController, viewModel: PersonasViewModel) {
     var nombre by remember { mutableStateOf("") }
     var monto by remember { mutableStateOf("") }
+    var montoInteresAgregado by remember { mutableStateOf("") }
+    var mostrarDialogoInteres by remember { mutableStateOf(false) }
+    var duracionCantidad by remember { mutableStateOf("") }
+    var duracionPlazo by remember { mutableStateOf("Meses") }
+    var aplicacionInteres by remember { mutableStateOf("Mensual") }
+    val opciones = listOf("Días", "Meses", "Años")
+    val opcionesInteres = listOf("Una sola vez", "Diario", "Semanal", "Mensual", "Anual")
+    var expanded by remember { mutableStateOf(false) }
+    var expandedInteres by remember { mutableStateOf(false) }
+    var interesAgregado by remember { mutableDoubleStateOf(0.0) }
+    var duracionPlazoPago by remember { mutableIntStateOf(0) }
 
     Scaffold(
         topBar = {
@@ -261,6 +280,151 @@ fun AgregarPersonaPantalla(navController: NavHostController, viewModel: Personas
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            //Botón para calcular interés
+            Button(
+                onClick = { mostrarDialogoInteres = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+            ) {
+                Text("Calcular Interés")
+            }
+            if(mostrarDialogoInteres)
+            {
+                AlertDialog(
+                    onDismissRequest = { mostrarDialogoInteres = false },
+                    title = { Text("Registrar interés") },
+                    text = {
+                        Column {
+                            OutlinedTextField(
+                                value = monto,
+                                onValueChange = { monto = it },
+                                label = { Text("Monto ($)") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true
+                            )
+
+                            Spacer(Modifier.height(10.dp))
+
+                            Text(
+                                text = "Se aplica",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+
+                            Spacer(Modifier.height(14.dp))
+
+                            Box (
+                                Modifier
+                                    .fillMaxWidth()// tamaño más compacto
+                                    .height(48.dp) // altura tipo TextField
+                                    .border(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.outline,
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { expandedInteres = true },
+                                contentAlignment = Alignment.Center
+                            ){
+                                Text(
+                                    text = aplicacionInteres,
+                                    modifier = Modifier
+                                        .padding(10.dp)
+                                )
+
+                                DropdownMenu(
+                                    expanded = expandedInteres,
+                                    onDismissRequest = { expandedInteres = false }
+                                ) {
+                                    opcionesInteres.forEach { opcionInteres ->
+                                        DropdownMenuItem(
+                                            text = { Text(opcionInteres) },
+                                            onClick = {
+                                                aplicacionInteres = opcionInteres
+                                                expandedInteres = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(Modifier.height(14.dp))
+
+                            Text(
+                                text = "Plazo",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+
+                            Spacer(Modifier.height(14.dp))
+
+                            OutlinedTextField(
+                                value = duracionCantidad,
+                                onValueChange = { duracionCantidad = it },
+                                label = { Text("Duración") },
+                                trailingIcon = {
+                                    Box {
+                                        Text(
+                                            text = duracionPlazo,
+                                            modifier = Modifier
+                                                .clickable { expanded = true }
+                                                .padding(10.dp)
+                                        )
+
+                                        DropdownMenu(
+                                            expanded = expanded,
+                                            onDismissRequest = { expanded = false }
+                                        ) {
+                                            opciones.forEach { opcion ->
+                                                DropdownMenuItem(
+                                                    text = { Text(opcion) },
+                                                    onClick = {
+                                                        duracionPlazo = opcion
+                                                        expanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true
+                            )
+
+                            Spacer(Modifier.height(10.dp))
+
+                            OutlinedTextField(
+                                value = montoInteresAgregado,
+                                onValueChange = { montoInteresAgregado = it },
+                                label = { Text("Interés agregado ($)") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true
+                            )
+
+                            Spacer(Modifier.height(10.dp))
+                        }
+                        if(aplicacionInteres == "Una sola vez")
+                        {
+                            duracionCantidad = "1"
+                            duracionPlazo = "Día"
+                        }
+                    },
+                    confirmButton = {
+                        Button(onClick = {
+                            val montoDouble = monto.toDoubleOrNull()
+                            val interes = montoInteresAgregado.toDoubleOrNull()
+                            val duracionCantidad = duracionCantidad.toIntOrNull()
+                            if (montoDouble != null && duracionCantidad != null && interes != null) {
+                                interesAgregado = interes
+                                duracionPlazoPago = duracionCantidad
+                                mostrarDialogoInteres = false
+                            }
+                        }) { Text("Guardar") }
+                    },
+                    dismissButton = { TextButton(onClick = { mostrarDialogoInteres = false }) { Text("Cancelar") } }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
             Button(
                 onClick = {
                     val montoDouble = monto.toDoubleOrNull() ?: return@Button
@@ -270,12 +434,18 @@ fun AgregarPersonaPantalla(navController: NavHostController, viewModel: Personas
                         nombre = nombre,
                         totalDeuda = montoDouble,
                         restante = montoDouble,
-                        saldada = false
+                        tasaInteres = interesAgregado,
+                        plazoPagos = duracionPlazoPago,
+                        saldada = false,
+                        tipoInteres = aplicacionInteres
+                        //fechaCreacion = LocalDate.now(),
                     )
                     viewModel.agregarPersona(nuevaPersona)
                     navController.popBackStack()
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
             ) {
                 Text("Guardar Deuda")
             }

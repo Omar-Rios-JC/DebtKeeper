@@ -1,6 +1,8 @@
 package com.example.debtkeeper
 
 import android.app.Application
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -9,9 +11,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.debtkeeper.data.DatabaseModule
 import com.example.debtkeeper.data.DebtEntity
 import com.example.debtkeeper.data.PaymentEntity
+import com.example.debtkeeper.model.Deuda
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
+//@RequiresApi(Build.VERSION_CODES.O)
 class PersonasViewModel(application: Application) : AndroidViewModel(application) {
 
     // --------- DAOs ----------
@@ -43,7 +49,8 @@ class PersonasViewModel(application: Application) : AndroidViewModel(application
     // --------- CRUD DE DEUDAS ----------
     fun agregarPersona(persona: DebtEntity) {
         viewModelScope.launch {
-            debtDao.insert(persona)
+            val deudaFinal = calcularInteres(persona)
+            debtDao.insert(deudaFinal)
             cargarPersonas()
         }
     }
@@ -111,6 +118,71 @@ class PersonasViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    // --------- INTERESES ----------
+    fun calcularInteres(deuda: DebtEntity): DebtEntity
+    {
+        if (deuda.tasaInteres <= 0.0) return deuda
 
+        if(deuda.interesAplicado) return deuda
+
+        if(deuda.tipoInteres == "Una sola Vez")
+        {
+            deuda.plazoPagos == 1
+        }
+
+        val interesAcumulado = deuda.tasaInteres * deuda.plazoPagos
+
+        return deuda.copy(
+            totalDeuda = deuda.totalDeuda + interesAcumulado,
+            restante = deuda.restante + interesAcumulado,
+            interesAcumulado = interesAcumulado,
+            interesAplicado = true
+        )
+    }
+
+    /*
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun aplicarIntereses(deuda: DebtEntity): DebtEntity
+    {
+        val hoy = LocalDate.now().plusMonths(6)
+
+        val fechaBase = deuda.ultimaActualizacionInteres ?: deuda.fechaCreacion
+
+        val aplicar = when (deuda.tipoInteres)
+        {
+            "Una sola vez" ->
+                {
+                deuda.ultimaActualizacionInteres == null
+                }
+            "Diario" -> ChronoUnit.DAYS.between(fechaBase, hoy) >=1
+            "Semanal" -> ChronoUnit.WEEKS.between(fechaBase, hoy) >=1
+            "Mensual" -> ChronoUnit.MONTHS.between(fechaBase, hoy) >=1
+            "Anual" -> ChronoUnit.YEARS.between(fechaBase, hoy) >=1
+            else -> false
+        }
+
+        if (!aplicar) return deuda
+
+        // Calcular nueva fecha de ciclo
+        val nuevaFecha = when (deuda.tipoInteres)
+        {
+            "Una sola vez" -> hoy
+            "Diario" -> fechaBase.plusDays(1)
+            "Semanal" -> fechaBase.plusWeeks(1)
+            "Mensual" -> fechaBase.plusMonths(1)
+            "Anual" -> fechaBase.plusYears(1)
+            else -> fechaBase
+        }
+
+        val nuevoInteresAcumulado = deuda.interesAcumulado + deuda.tasaInteres
+
+        return deuda.copy(
+            restante = deuda.restante + deuda.tasaInteres,
+            interesAcumulado = nuevoInteresAcumulado,
+            ultimaActualizacionInteres = nuevaFecha,
+            tipoInteres = if (deuda.tipoInteres == "Una sola vez") "Ninguno" else deuda.tipoInteres
+        )
+    }
+    */
 
 }

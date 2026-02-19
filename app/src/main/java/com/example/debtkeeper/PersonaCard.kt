@@ -6,6 +6,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
@@ -34,6 +36,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.example.debtkeeper.model.Deuda
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -51,6 +55,7 @@ fun PersonaCard(
     var mostrarDialogo by remember { mutableStateOf(false) }
     var mostrarDialogoEliminar by remember { mutableStateOf(false) }
     var mostrarDialogoReactivar by remember { mutableStateOf(false) }
+    var mostrarDialogoActualizarDeuda by remember { mutableStateOf(false) }
     var montoPago by remember { mutableStateOf("") }
     var fechaPago by remember { mutableStateOf("Seleccionar Fecha") }
     var nuevoMonto by remember { mutableStateOf("") }
@@ -58,6 +63,7 @@ fun PersonaCard(
     val pagos by viewModel.obtenerPagosPorDeuda(persona.id).collectAsState(initial = emptyList())
     val pagado = persona.totalDeuda - persona.restante
     val progreso = if (persona.totalDeuda > 0) (pagado / persona.totalDeuda).toFloat() else 0f
+    val interesAcumulado = persona.interesAcumulado
 
     Card(
         modifier = modifier
@@ -144,6 +150,15 @@ fun PersonaCard(
                     modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
                     color = MaterialTheme.colorScheme.secondary
                 )
+                if (persona.tasaInteres > 0.0)
+                {
+                    Text(
+                        text = "Interés Acumulado: $$interesAcumulado",
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
 
             if (expandido) {
@@ -168,6 +183,11 @@ fun PersonaCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
+                    IconButton({ mostrarDialogoActualizarDeuda = true })
+                    {
+                        Icon(Icons.Filled.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary)
+                    }
+
                     IconButton(onClick = { mostrarDialogoEliminar = true }) {
                         Icon(Icons.Filled.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
                     }
@@ -243,7 +263,7 @@ fun PersonaCard(
                     if (monto != null && fechaPago.isNotBlank()) {
                         viewModel.registrarPago(persona, monto, fechaPago)
                         montoPago = ""
-                        fechaPago = ""
+                        fechaPago = "Seleccionar Fecha"
                         mostrarDialogo = false
                     }
                 }) { Text("Guardar") }
@@ -298,6 +318,15 @@ fun PersonaCard(
         )
     }
 
+    if (mostrarDialogoActualizarDeuda)
+    {
+        DialogoEditarDeuda(
+            persona = persona,
+            viewModel = viewModel,
+            onCerrar = { mostrarDialogoActualizarDeuda = false }
+        )
+    }
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -331,4 +360,220 @@ fun MostrarDatePicker(
     ) {
         DatePicker(state = datePickerState)
     }
+}
+
+@Composable
+fun DialogoEditarDeuda(
+    persona: DebtEntity,
+    viewModel: PersonasViewModel,
+    onCerrar: () -> Unit
+) {
+
+    var nombre by remember { mutableStateOf(persona.nombre) }
+    var aumentoDeuda by remember { mutableStateOf("") }
+    var aumentarInteres by remember { mutableStateOf("") }
+    var disminuirInteres by remember { mutableStateOf("") }
+    var duracionCantidad by remember { mutableStateOf(persona.plazoPagos.toString()) }
+    var duracionPlazo by remember { mutableStateOf("Meses") }
+    val opciones = listOf("Días", "Meses", "Años")
+    var expanded by remember { mutableStateOf(false) }
+    var aplicacionInteres by remember { mutableStateOf(persona.tipoInteres) }
+    val opcionesInteres = listOf("Una sola vez", "Diario", "Semanal", "Mensual", "Anual")
+    var expandedInteres by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onCerrar,
+        title = { Text("Actualizar Deuda") },
+        text = {
+
+            Column {
+
+                // 👤 SECCIÓN DEUDOR
+                Text(
+                    text = "Información del deudor",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = nombre,
+                    onValueChange = { nombre = it },
+                    label = { Text("Nombre del deudor") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Spacer(Modifier.height(20.dp))
+
+                // 💰 SECCIÓN MONTO
+                Text(
+                    text = "Ajustar monto de la deuda",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = aumentoDeuda,
+                    onValueChange = { aumentoDeuda = it },
+                    label = { Text("Monto a agregar ($)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+
+                Spacer(Modifier.height(20.dp))
+
+                // 📈 SECCIÓN INTERÉS
+                Text(
+                    text = "Actualizar interés",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                Text(
+                    text = "Se aplica",
+                    style = MaterialTheme.typography.titleSmall
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                Box (
+                    Modifier
+                        .fillMaxWidth()// tamaño más compacto
+                        .height(48.dp) // altura tipo TextField
+                        .border(
+                            1.dp,
+                            MaterialTheme.colorScheme.outline,
+                            RoundedCornerShape(8.dp)
+                        )
+                        .clickable { expandedInteres = true },
+                    contentAlignment = Alignment.Center
+                ){
+                    Text(
+                        text = aplicacionInteres,
+                        modifier = Modifier
+                            .padding(10.dp)
+                    )
+
+                    DropdownMenu(
+                        expanded = expandedInteres,
+                        onDismissRequest = { expandedInteres = false }
+                    ) {
+                        opcionesInteres.forEach { opcionInteres ->
+                            DropdownMenuItem(
+                                text = { Text(opcionInteres) },
+                                onClick = {
+                                    aplicacionInteres = opcionInteres
+                                    expandedInteres = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                Text(
+                    text = "Plazo",
+                    style = MaterialTheme.typography.titleSmall
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = duracionCantidad,
+                    onValueChange = { duracionCantidad = it },
+                    label = { Text("Duración") },
+                    trailingIcon = {
+                        Box {
+                            Text(
+                                text = duracionPlazo,
+                                modifier = Modifier
+                                    .clickable { expanded = true }
+                                    .padding(10.dp)
+                            )
+
+                            DropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                opciones.forEach { opcion ->
+                                    DropdownMenuItem(
+                                        text = { Text(opcion) },
+                                        onClick = {
+                                            duracionPlazo = opcion
+                                            expanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = aumentarInteres,
+                    onValueChange = { aumentarInteres = it },
+                    label = { Text("Agregar interés ($)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = disminuirInteres,
+                    onValueChange = { disminuirInteres = it },
+                    label = { Text("Disminuir interés ($)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+            }
+            if(aplicacionInteres == "Una sola vez")
+            {
+                duracionCantidad = "1"
+                duracionPlazo = "Día"
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+
+                val aumento = aumentoDeuda.toDoubleOrNull() ?: 0.0
+                val interesMas = aumentarInteres.toDoubleOrNull() ?: 0.0
+                val interesMenos = disminuirInteres.toDoubleOrNull() ?: 0.0
+                val duracionPlazoPago = duracionCantidad.toIntOrNull() ?: 0
+
+                val interesAjustado = (interesMas * duracionPlazoPago) - interesMenos
+
+                val deudaActualizada = persona.copy(
+                    nombre = nombre,
+                    totalDeuda = persona.totalDeuda + aumento + interesAjustado,
+                    restante = persona.restante + aumento + interesAjustado,
+                    tipoInteres = aplicacionInteres,
+                    plazoPagos = duracionPlazoPago,
+                    interesAcumulado = persona.interesAcumulado + interesAjustado
+                )
+
+                viewModel.actualizarPersona(deudaActualizada)
+
+                onCerrar()
+            }) {
+                Text("Guardar cambios")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCerrar) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
