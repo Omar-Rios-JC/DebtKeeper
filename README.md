@@ -10,6 +10,6 @@
 
 ---
 
-##💻 Autor
+## Autor
 
 **Luvia**
