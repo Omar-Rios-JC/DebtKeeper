@@ -39,9 +39,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.debtkeeper.model.Deuda
 import java.text.SimpleDateFormat
+import java.time.LocalDate
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,6 +67,12 @@ fun PersonaCard(
     val pagado = persona.totalDeuda - persona.restante
     val progreso = if (persona.totalDeuda > 0) (pagado / persona.totalDeuda).toFloat() else 0f
     val interesAcumulado = persona.interesAcumulado
+    val context = LocalContext.current
+    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    var mostrarAlerta by remember { mutableStateOf(false) }
+    var maximoPermitido by remember { mutableStateOf(0.0) }
+
+
 
     Card(
         modifier = modifier
@@ -251,7 +260,22 @@ fun PersonaCard(
                     }
                     if (mostrarSelectorFecha) {
                         MostrarDatePicker(
-                            onFechaSeleccionada = { fechaPago = it },
+                            onFechaSeleccionada = { fechaString ->
+
+                                val fechaSeleccionada = LocalDate.parse(fechaString, formatter)
+                                val hoy = LocalDate.now()
+
+                                if (fechaSeleccionada.isAfter(hoy)) {
+                                    Toast.makeText(
+                                        context,
+                                        "No puedes seleccionar una fecha futura",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                } else {
+                                    fechaPago = fechaString
+                                    mostrarSelectorFecha = false
+                                }
+                            },
                             onCerrar = { mostrarSelectorFecha = false }
                         )
                     }
@@ -259,18 +283,55 @@ fun PersonaCard(
             },
             confirmButton = {
                 Button(onClick = {
+
                     val monto = montoPago.toDoubleOrNull()
+
                     if (monto != null && fechaPago.isNotBlank()) {
-                        viewModel.registrarPago(persona, monto, fechaPago)
-                        montoPago = ""
-                        fechaPago = "Seleccionar Fecha"
-                        mostrarDialogo = false
+                        //Validar que el pago no supere el monto de la deuda
+                        var totalSaldado: Double = 0.0
+                        pagos.forEach { p -> totalSaldado += p.monto }
+
+                        if (totalSaldado + monto > persona.totalDeuda) {
+
+                            maximoPermitido = persona.totalDeuda - totalSaldado
+                            mostrarAlerta = true
+
+                        } else {
+
+                            viewModel.registrarPago(persona, monto, fechaPago)
+                            montoPago = ""
+                            fechaPago = "Seleccionar Fecha"
+                            mostrarDialogo = false
+
+                        }
+
+
+
                     }
                 }) { Text("Guardar") }
             },
             dismissButton = { TextButton(onClick = { mostrarDialogo = false }) { Text("Cancelar") } }
         )
     }
+
+    if (mostrarAlerta) {
+        AlertDialog(
+            onDismissRequest = { mostrarAlerta = false },
+            confirmButton = {
+                TextButton(onClick = { mostrarAlerta = false }) {
+                    Text("Aceptar")
+                }
+            },
+            title = { Text("Monto inválido") },
+            text = {
+                Text(
+                    "El monto no puede superar el total de la deuda.\n" +
+                            "Máximo que puedes agregar: $${"%.2f".format(maximoPermitido)}"
+                )
+            }
+        )
+    }
+
 
     if (mostrarDialogoEliminar) {
         AlertDialog(
