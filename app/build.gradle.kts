@@ -11,7 +11,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.debtkeeper"
+        applicationId = "com.luvia.debtkeeper"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -59,7 +59,6 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    implementation("androidx.datastore:datastore-preferences:1.0.0")
     implementation("androidx.compose.material:material-icons-extended:1.5.4")
 
     implementation("androidx.navigation:navigation-compose:2.7.3")

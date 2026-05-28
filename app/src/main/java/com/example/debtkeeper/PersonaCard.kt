@@ -1,6 +1,7 @@
 package com.example.debtkeeper
 
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
@@ -8,43 +9,74 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
-import com.example.debtkeeper.data.DebtEntity
-import java.time.format.DateTimeFormatter
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.saveable.rememberSaveable
-import com.example.debtkeeper.model.Deuda
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.example.debtkeeper.data.DebtEntity
 import java.text.SimpleDateFormat
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,60 +87,79 @@ fun PersonaCard(
     modifier: Modifier = Modifier
 ) {
     var expandido by remember { mutableStateOf(false) }
-    var mostrarDialogo by remember { mutableStateOf(false) }
+    var mostrarDialogoPago by remember { mutableStateOf(false) }
     var mostrarDialogoEliminar by remember { mutableStateOf(false) }
     var mostrarDialogoReactivar by remember { mutableStateOf(false) }
     var mostrarDialogoActualizarDeuda by remember { mutableStateOf(false) }
-    var montoPago by remember { mutableStateOf("") }
-    var fechaPago by remember { mutableStateOf("Seleccionar Fecha") }
-    var nuevoMonto by remember { mutableStateOf("") }
     var mostrarSelectorFecha by remember { mutableStateOf(false) }
-    val pagos by viewModel.obtenerPagosPorDeuda(persona.id).collectAsState(initial = emptyList())
-    val pagado = persona.totalDeuda - persona.restante
-    val progreso = if (persona.totalDeuda > 0) (pagado / persona.totalDeuda).toFloat() else 0f
-    val interesAcumulado = persona.interesAcumulado
-    val context = LocalContext.current
-    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
     var mostrarAlerta by remember { mutableStateOf(false) }
+    var montoPago by remember { mutableStateOf("") }
+    var fechaPago by remember { mutableStateOf("Seleccionar fecha") }
+    var nuevoMonto by remember { mutableStateOf("") }
     var maximoPermitido by remember { mutableStateOf(0.0) }
 
-
+    val pagos by viewModel.obtenerPagosPorDeuda(persona.id).collectAsState(initial = emptyList())
+    val pagado = (persona.totalDeuda - persona.restante).coerceAtLeast(0.0)
+    val progreso = if (persona.totalDeuda > 0) (pagado / persona.totalDeuda).toFloat().coerceIn(0f, 1f) else 0f
+    val context = LocalContext.current
+    val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp, horizontal = 4.dp)
             .animateContentSize(
                 animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow
                 )
             )
             .clickable { expandido = !expandido },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (expandido) 5.dp else 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = persona.nombre,
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        color = if (persona.saldada) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = if (persona.saldada) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                        shape = CircleShape
+                    ) {
+                        Icon(
+                            imageVector = if (persona.saldada) Icons.Filled.Refresh else Icons.Filled.Person,
+                            contentDescription = null,
+                            modifier = Modifier.padding(10.dp).size(22.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = persona.nombre,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (persona.saldada) "Deuda liquidada" else "${pagos.size} pago(s) registrados",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
                 if (persona.saldada) {
                     AssistChip(
-                        onClick = {},
-                        label = { Text("¡Pagado!", color = Color.White) },
+                        onClick = { mostrarDialogoReactivar = true },
+                        label = { Text("Pagado") },
                         colors = AssistChipDefaults.assistChipColors(
-                            containerColor = MaterialTheme.colorScheme.primary
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            labelColor = MaterialTheme.colorScheme.onPrimaryContainer
                         ),
                         border = null
                     )
@@ -121,96 +172,102 @@ fun PersonaCard(
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text("Total", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
-                    Text("$${persona.totalDeuda}", style = MaterialTheme.typography.bodyLarge)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("Pendiente", style = MaterialTheme.typography.labelMedium, color = Color.Gray)
-                    Text(
-                        "$${persona.restante}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = if (persona.saldada) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                    )
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                MoneyStat(
+                    label = "Total",
+                    value = formatCurrency(persona.totalDeuda),
+                    modifier = Modifier.weight(1f)
+                )
+                MoneyStat(
+                    label = "Pendiente",
+                    value = formatCurrency(persona.restante.coerceAtLeast(0.0)),
+                    modifier = Modifier.weight(1f),
+                    alert = !persona.saldada
+                )
             }
 
-            Spacer(Modifier.height(12.dp))
-
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 LinearProgressIndicator(
                     progress = { progreso },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp)),
-                    color = MaterialTheme.colorScheme.secondary,
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(50)),
+                    color = if (persona.saldada) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
-                Text(
-                    text = "${(progreso * 100).toInt()}% Pagado",
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
-                    color = MaterialTheme.colorScheme.secondary
-                )
-                if (persona.tasaInteres > 0.0)
-                {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Text(
-                        text = "Interés Acumulado: $$interesAcumulado",
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = "${(progreso * 100).toInt()}% pagado",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (persona.interesAcumulado > 0.0) {
+                        Text(
+                            text = "Interés: ${formatCurrency(persona.interesAcumulado)}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
                 }
             }
 
             if (expandido) {
-                Divider(modifier = Modifier.padding(vertical = 12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 if (pagos.isNotEmpty()) {
-                    Text("Historial de pagos:", style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.height(4.dp))
-                    pagos.forEach { pago ->
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("• ${pago.fecha}", style = MaterialTheme.typography.bodySmall)
-                            Text("Abonó $${pago.monto}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                    Text("Historial de pagos", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        pagos.forEach { pago ->
+                            PaymentRow(fecha = pago.fecha, monto = pago.monto)
                         }
                     }
-                    Spacer(Modifier.height(16.dp))
                 } else {
-                    Text("Sin pagos registrados.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                    Spacer(Modifier.height(16.dp))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(
+                            "Sin pagos registrados.",
+                            modifier = Modifier.padding(14.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton({ mostrarDialogoActualizarDeuda = true })
-                    {
+                    IconButton(onClick = { mostrarDialogoActualizarDeuda = true }) {
                         Icon(Icons.Filled.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary)
                     }
-
                     IconButton(onClick = { mostrarDialogoEliminar = true }) {
                         Icon(Icons.Filled.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
                     }
-
                     Spacer(Modifier.width(8.dp))
-
                     if (persona.saldada) {
-                        Button(onClick = { mostrarDialogoReactivar = true }) {
+                        Button(
+                            onClick = { mostrarDialogoReactivar = true },
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
                             Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text("Reactivar")
                         }
                     } else {
-                        Button(onClick = { mostrarDialogo = true }) {
+                        Button(
+                            onClick = { mostrarDialogoPago = true },
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(Icons.Filled.Payments, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
                             Text("Abonar")
                         }
                     }
@@ -219,49 +276,43 @@ fun PersonaCard(
         }
     }
 
-    if (mostrarDialogo) {
+    if (mostrarDialogoPago) {
         AlertDialog(
-            onDismissRequest = { mostrarDialogo = false },
+            onDismissRequest = { mostrarDialogoPago = false },
+            icon = { Icon(Icons.Filled.Payments, contentDescription = null) },
             title = { Text("Registrar pago") },
             text = {
-                Column {
-                    OutlinedTextField(
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    PrettyTextField(
                         value = montoPago,
                         onValueChange = { montoPago = it },
-                        label = { Text("Monto") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true
+                        label = "Monto",
+                        keyboardType = KeyboardType.Decimal,
+                        icon = Icons.Filled.AttachMoney
                     )
 
-                    Spacer(Modifier.height(10.dp))
-
-                    Button(
-                        onClick = { mostrarSelectorFecha = true },
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp),
-                        shape = RoundedCornerShape(4.dp),
-                        border = BorderStroke(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outline // El color exacto del borde del TextField
-                        ),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.Transparent, // Fondo transparente como el TextField
-                            contentColor = MaterialTheme.colorScheme.onSurface // Color del texto
-                        )
+                            .height(56.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
+                            .clickable { mostrarSelectorFecha = true },
+                        color = MaterialTheme.colorScheme.surface
                     ) {
-                        Text(text = fechaPago)
-                        // Este Spacer empuja todo lo que viene después a la derecha
-                        Spacer(Modifier.weight(1f))
-                        Icon(
-                            imageVector = Icons.Filled.CalendarToday,
-                            contentDescription = "Seleccionar fecha"
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(fechaPago, color = MaterialTheme.colorScheme.onSurface)
+                            Spacer(Modifier.weight(1f))
+                            Icon(Icons.Filled.CalendarToday, contentDescription = "Seleccionar fecha")
+                        }
                     }
+
                     if (mostrarSelectorFecha) {
                         MostrarDatePicker(
                             onFechaSeleccionada = { fechaString ->
-
                                 val fechaSeleccionada = LocalDate.parse(fechaString, formatter)
                                 val hoy = LocalDate.now()
 
@@ -283,34 +334,25 @@ fun PersonaCard(
             },
             confirmButton = {
                 Button(onClick = {
-
                     val monto = montoPago.toDoubleOrNull()
-
-                    if (monto != null && fechaPago.isNotBlank()) {
-                        //Validar que el pago no supere el monto de la deuda
-                        var totalSaldado: Double = 0.0
-                        pagos.forEach { p -> totalSaldado += p.monto }
-
-                        if (totalSaldado + monto > persona.totalDeuda) {
-
-                            maximoPermitido = persona.totalDeuda - totalSaldado
+                    if (monto != null && monto > 0 && fechaPago != "Seleccionar fecha") {
+                        if (monto > persona.restante) {
+                            maximoPermitido = persona.restante
                             mostrarAlerta = true
-
                         } else {
-
                             viewModel.registrarPago(persona, monto, fechaPago)
                             montoPago = ""
-                            fechaPago = "Seleccionar Fecha"
-                            mostrarDialogo = false
-
+                            fechaPago = "Seleccionar fecha"
+                            mostrarDialogoPago = false
                         }
-
-
-
                     }
                 }) { Text("Guardar") }
             },
-            dismissButton = { TextButton(onClick = { mostrarDialogo = false }) { Text("Cancelar") } }
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoPago = false }) {
+                    Text("Cancelar")
+                }
+            }
         )
     }
 
@@ -323,21 +365,16 @@ fun PersonaCard(
                 }
             },
             title = { Text("Monto inválido") },
-            text = {
-                Text(
-                    "El monto no puede superar el total de la deuda.\n" +
-                            "Máximo que puedes agregar: $${"%.2f".format(maximoPermitido)}"
-                )
-            }
+            text = { Text("El pago no puede superar el saldo pendiente. Máximo permitido: ${formatCurrency(maximoPermitido)}") }
         )
     }
-
 
     if (mostrarDialogoEliminar) {
         AlertDialog(
             onDismissRequest = { mostrarDialogoEliminar = false },
-            title = { Text("¿Eliminar deuda?") },
-            text = { Text("Se borrará todo el historial de pagos de ${persona.nombre}.") },
+            icon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text("Eliminar deuda") },
+            text = { Text("Se borrará la deuda de ${persona.nombre} y dejará de mostrarse en tu historial.") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -347,47 +384,95 @@ fun PersonaCard(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) { Text("Eliminar") }
             },
-            dismissButton = { TextButton(onClick = { mostrarDialogoEliminar = false }) { Text("Cancelar") } }
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoEliminar = false }) {
+                    Text("Cancelar")
+                }
+            }
         )
     }
 
     if (mostrarDialogoReactivar) {
         AlertDialog(
             onDismissRequest = { mostrarDialogoReactivar = false },
+            icon = { Icon(Icons.Filled.Refresh, contentDescription = null) },
             title = { Text("Reactivar deuda") },
             text = {
-                Column {
-                    Text("Ingresa el nuevo monto total:")
-                    OutlinedTextField(
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Ingresa el nuevo monto total.")
+                    PrettyTextField(
                         value = nuevoMonto,
                         onValueChange = { nuevoMonto = it },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        label = "Nuevo monto",
+                        keyboardType = KeyboardType.Decimal,
+                        icon = Icons.Filled.AttachMoney
                     )
                 }
             },
             confirmButton = {
                 Button(onClick = {
                     val monto = nuevoMonto.toDoubleOrNull()
-                    if (monto != null) {
+                    if (monto != null && monto > 0) {
                         viewModel.reactivarDeuda(persona, monto)
                         nuevoMonto = ""
                         mostrarDialogoReactivar = false
                     }
                 }) { Text("Confirmar") }
             },
-            dismissButton = { TextButton(onClick = { mostrarDialogoReactivar = false }) { Text("Cancelar") } }
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoReactivar = false }) {
+                    Text("Cancelar")
+                }
+            }
         )
     }
 
-    if (mostrarDialogoActualizarDeuda)
-    {
+    if (mostrarDialogoActualizarDeuda) {
         DialogoEditarDeuda(
             persona = persona,
             viewModel = viewModel,
             onCerrar = { mostrarDialogoActualizarDeuda = false }
         )
     }
+}
 
+@Composable
+private fun MoneyStat(label: String, value: String, modifier: Modifier = Modifier, alert: Boolean = false) {
+    Surface(
+        modifier = modifier,
+        color = if (alert) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.42f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        contentColor = if (alert) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(label, style = MaterialTheme.typography.labelMedium)
+            Text(value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+        }
+    }
+}
+
+@Composable
+private fun PaymentRow(fecha: String, monto: Double) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(color = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer, shape = CircleShape) {
+                    Icon(Icons.Filled.CalendarToday, contentDescription = null, modifier = Modifier.padding(8.dp).size(16.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                Text(fecha, style = MaterialTheme.typography.bodyMedium)
+            }
+            Text(formatCurrency(monto), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -429,206 +514,118 @@ fun DialogoEditarDeuda(
     viewModel: PersonasViewModel,
     onCerrar: () -> Unit
 ) {
-
     var nombre by remember { mutableStateOf(persona.nombre) }
     var aumentoDeuda by remember { mutableStateOf("") }
     var aumentarInteres by remember { mutableStateOf("") }
     var disminuirInteres by remember { mutableStateOf("") }
     var duracionCantidad by remember { mutableStateOf(persona.plazoPagos.toString()) }
     var duracionPlazo by remember { mutableStateOf("Meses") }
-    val opciones = listOf("Días", "Meses", "Años")
     var expanded by remember { mutableStateOf(false) }
     var aplicacionInteres by remember { mutableStateOf(persona.tipoInteres) }
-    val opcionesInteres = listOf("Una sola vez", "Diario", "Semanal", "Mensual", "Anual")
     var expandedInteres by remember { mutableStateOf(false) }
+    val opciones = listOf("Días", "Meses", "Años")
+    val opcionesInteres = listOf("Una sola vez", "Diario", "Semanal", "Mensual", "Anual")
+
+    LaunchedEffect(aplicacionInteres) {
+        if (aplicacionInteres == "Una sola vez") {
+            duracionCantidad = "1"
+            duracionPlazo = "Días"
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onCerrar,
-        title = { Text("Actualizar Deuda") },
+        icon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+        title = { Text("Actualizar deuda") },
         text = {
-
-            Column {
-
-                // 👤 SECCIÓN DEUDOR
-                Text(
-                    text = "Información del deudor",
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                OutlinedTextField(
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                PrettyTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
-                    label = { Text("Nombre del deudor") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Nombre del deudor",
+                    keyboardType = KeyboardType.Text,
+                    icon = Icons.Filled.Person
                 )
 
-                Spacer(Modifier.height(20.dp))
-
-                // 💰 SECCIÓN MONTO
-                Text(
-                    text = "Ajustar monto de la deuda",
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                OutlinedTextField(
+                PrettyTextField(
                     value = aumentoDeuda,
                     onValueChange = { aumentoDeuda = it },
-                    label = { Text("Monto a agregar ($)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
+                    label = "Monto a agregar",
+                    keyboardType = KeyboardType.Decimal,
+                    icon = Icons.Filled.AttachMoney
                 )
 
-                Spacer(Modifier.height(20.dp))
-
-                // 📈 SECCIÓN INTERÉS
-                Text(
-                    text = "Actualizar interés",
-                    style = MaterialTheme.typography.titleMedium
+                DialogSelector(
+                    label = "Interés",
+                    value = aplicacionInteres,
+                    expanded = expandedInteres,
+                    onExpandedChange = { expandedInteres = it },
+                    options = opcionesInteres,
+                    onOptionSelected = { aplicacionInteres = it }
                 )
 
-                Spacer(Modifier.height(10.dp))
-
-                Text(
-                    text = "Se aplica",
-                    style = MaterialTheme.typography.titleSmall
-                )
-
-                Spacer(Modifier.height(10.dp))
-
-                Box (
-                    Modifier
-                        .fillMaxWidth()// tamaño más compacto
-                        .height(48.dp) // altura tipo TextField
-                        .border(
-                            1.dp,
-                            MaterialTheme.colorScheme.outline,
-                            RoundedCornerShape(8.dp)
-                        )
-                        .clickable { expandedInteres = true },
-                    contentAlignment = Alignment.Center
-                ){
-                    Text(
-                        text = aplicacionInteres,
-                        modifier = Modifier
-                            .padding(10.dp)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    PrettyTextField(
+                        value = duracionCantidad,
+                        onValueChange = { duracionCantidad = it },
+                        label = "Duración",
+                        keyboardType = KeyboardType.Number,
+                        icon = Icons.Filled.Schedule,
+                        modifier = Modifier.weight(1f),
+                        enabled = aplicacionInteres != "Una sola vez"
                     )
-
-                    DropdownMenu(
-                        expanded = expandedInteres,
-                        onDismissRequest = { expandedInteres = false }
-                    ) {
-                        opcionesInteres.forEach { opcionInteres ->
-                            DropdownMenuItem(
-                                text = { Text(opcionInteres) },
-                                onClick = {
-                                    aplicacionInteres = opcionInteres
-                                    expandedInteres = false
-                                }
-                            )
-                        }
-                    }
+                    DialogSelector(
+                        label = "Plazo",
+                        value = duracionPlazo,
+                        expanded = expanded,
+                        onExpandedChange = { expanded = it },
+                        options = opciones,
+                        onOptionSelected = { duracionPlazo = it },
+                        modifier = Modifier.weight(1f),
+                        enabled = aplicacionInteres != "Una sola vez"
+                    )
                 }
 
-                Spacer(Modifier.height(10.dp))
-
-                Text(
-                    text = "Plazo",
-                    style = MaterialTheme.typography.titleSmall
-                )
-
-                Spacer(Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = duracionCantidad,
-                    onValueChange = { duracionCantidad = it },
-                    label = { Text("Duración") },
-                    trailingIcon = {
-                        Box {
-                            Text(
-                                text = duracionPlazo,
-                                modifier = Modifier
-                                    .clickable { expanded = true }
-                                    .padding(10.dp)
-                            )
-
-                            DropdownMenu(
-                                expanded = expanded,
-                                onDismissRequest = { expanded = false }
-                            ) {
-                                opciones.forEach { opcion ->
-                                    DropdownMenuItem(
-                                        text = { Text(opcion) },
-                                        onClick = {
-                                            duracionPlazo = opcion
-                                            expanded = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-
-                Spacer(Modifier.height(14.dp))
-
-                OutlinedTextField(
+                PrettyTextField(
                     value = aumentarInteres,
                     onValueChange = { aumentarInteres = it },
-                    label = { Text("Agregar interés ($)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
+                    label = "Agregar interés",
+                    keyboardType = KeyboardType.Decimal,
+                    icon = Icons.Filled.AttachMoney
                 )
 
-                Spacer(Modifier.height(12.dp))
-
-                OutlinedTextField(
+                PrettyTextField(
                     value = disminuirInteres,
                     onValueChange = { disminuirInteres = it },
-                    label = { Text("Disminuir interés ($)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
+                    label = "Disminuir interés",
+                    keyboardType = KeyboardType.Decimal,
+                    icon = Icons.Filled.AttachMoney
                 )
-            }
-            if(aplicacionInteres == "Una sola vez")
-            {
-                duracionCantidad = "1"
-                duracionPlazo = "Día"
             }
         },
         confirmButton = {
             Button(onClick = {
-
                 val aumento = aumentoDeuda.toDoubleOrNull() ?: 0.0
                 val interesMas = aumentarInteres.toDoubleOrNull() ?: 0.0
                 val interesMenos = disminuirInteres.toDoubleOrNull() ?: 0.0
                 val duracionPlazoPago = duracionCantidad.toIntOrNull() ?: 0
-
                 val interesAjustado = (interesMas * duracionPlazoPago) - interesMenos
 
                 val deudaActualizada = persona.copy(
-                    nombre = nombre,
+                    nombre = nombre.trim().ifBlank { persona.nombre },
                     totalDeuda = persona.totalDeuda + aumento + interesAjustado,
                     restante = persona.restante + aumento + interesAjustado,
                     tipoInteres = aplicacionInteres,
                     plazoPagos = duracionPlazoPago,
-                    interesAcumulado = persona.interesAcumulado + interesAjustado
+                    interesAcumulado = (persona.interesAcumulado + interesAjustado).coerceAtLeast(0.0)
                 )
 
                 viewModel.actualizarPersona(deudaActualizada)
-
                 onCerrar()
             }) {
-                Text("Guardar cambios")
+                Icon(Icons.Filled.Save, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Guardar")
             }
         },
         dismissButton = {
@@ -637,4 +634,67 @@ fun DialogoEditarDeuda(
             }
         }
     )
+}
+
+@Composable
+private fun PrettyTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    keyboardType: KeyboardType,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        modifier = modifier.fillMaxWidth(),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        singleLine = true,
+        enabled = enabled,
+        leadingIcon = { Icon(icon, contentDescription = null) },
+        shape = RoundedCornerShape(16.dp)
+    )
+}
+
+@Composable
+private fun DialogSelector(
+    label: String,
+    value: String,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    options: List<String>,
+    onOptionSelected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Box(modifier = modifier) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            label = { Text(label) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = enabled) { onExpandedChange(true) },
+            readOnly = true,
+            enabled = enabled,
+            shape = RoundedCornerShape(16.dp)
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { onExpandedChange(false) }
+        ) {
+            options.forEach { opcion ->
+                DropdownMenuItem(
+                    text = { Text(opcion) },
+                    onClick = {
+                        onOptionSelected(opcion)
+                        onExpandedChange(false)
+                    }
+                )
+            }
+        }
+    }
 }

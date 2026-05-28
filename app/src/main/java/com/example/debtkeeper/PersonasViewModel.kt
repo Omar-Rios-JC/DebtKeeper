@@ -125,16 +125,13 @@ class PersonasViewModel(application: Application) : AndroidViewModel(application
 
         if(deuda.interesAplicado) return deuda
 
-        if(deuda.tipoInteres == "Una sola Vez")
-        {
-            deuda.plazoPagos == 1
-        }
-
-        val interesAcumulado = deuda.tasaInteres * deuda.plazoPagos
+        val plazo = if (deuda.tipoInteres == "Una sola vez") 1 else deuda.plazoPagos
+        val interesAcumulado = deuda.tasaInteres * plazo
 
         return deuda.copy(
             totalDeuda = deuda.totalDeuda + interesAcumulado,
             restante = deuda.restante + interesAcumulado,
+            plazoPagos = plazo,
             interesAcumulado = interesAcumulado,
             interesAplicado = true
         )

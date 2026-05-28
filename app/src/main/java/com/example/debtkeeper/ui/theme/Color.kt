@@ -2,19 +2,20 @@ package com.example.debtkeeper.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Paleta "Financiera" Moderna
-val PrimaryGreen = Color(0xFF2E7D32)      // Verde
-val SecondaryTeal = Color(0xFF00695C)     // Verde azulado
-val BackgroundLight = Color(0xFFF5F7F6)   // Fondo grisaceo
-val SurfaceWhite = Color(0xFFFFFFFF)      // Tarjetas blancas
-val ErrorRed = Color(0xFFB00020)          // Rojo error
+val PrimaryGreen = Color(0xFF126A51)
+val SecondaryTeal = Color(0xFF2F6F86)
+val AccentGold = Color(0xFFE0A526)
+val BackgroundLight = Color(0xFFF6F3EC)
+val SurfaceWhite = Color(0xFFFFFCF7)
+val SurfaceVariantLight = Color(0xFFEAE3D8)
+val ErrorRed = Color(0xFFB3261E)
 
-// Modo Oscuro
-val PrimaryGreenDark = Color(0xFF66BB6A)
-val SecondaryTealDark = Color(0xFF80CBC4)
-val SurfaceDark = Color(0xFF1E1E1E)
+val PrimaryGreenDark = Color(0xFF75D2B2)
+val SecondaryTealDark = Color(0xFF8BC7D9)
+val AccentGoldDark = Color(0xFFFFCD68)
+val SurfaceDark = Color(0xFF171A1D)
+val SurfaceVariantDark = Color(0xFF263238)
 
-// Colores antiguos (puedes borrarlos o dejarlos)
 val Purple80 = Color(0xFFD0BCFF)
 val PurpleGrey80 = Color(0xFFCCC2DC)
 val Pink80 = Color(0xFFEFB8C8)
