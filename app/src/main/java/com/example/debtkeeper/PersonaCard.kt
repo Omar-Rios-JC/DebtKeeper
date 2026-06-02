@@ -98,6 +98,8 @@ fun PersonaCard(
     var nuevoMonto by remember { mutableStateOf("") }
     var maximoPermitido by remember { mutableStateOf(0.0) }
 
+    val modo = DebtMode.fromStorage(persona.modo)
+    val esDeudaPropia = modo == DebtMode.POR_PAGAR
     val pagos by viewModel.obtenerPagosPorDeuda(persona.id).collectAsState(initial = emptyList())
     val pagado = (persona.totalDeuda - persona.restante).coerceAtLeast(0.0)
     val progreso = if (persona.totalDeuda > 0) (pagado / persona.totalDeuda).toFloat().coerceIn(0f, 1f) else 0f
@@ -146,7 +148,11 @@ fun PersonaCard(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = if (persona.saldada) "Deuda liquidada" else "${pagos.size} pago(s) registrados",
+                            text = if (persona.saldada) {
+                                if (esDeudaPropia) "Deuda pagada" else "Deuda liquidada"
+                            } else {
+                                "${pagos.size} pago(s) registrados"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -179,7 +185,7 @@ fun PersonaCard(
                     modifier = Modifier.weight(1f)
                 )
                 MoneyStat(
-                    label = "Pendiente",
+                    label = if (esDeudaPropia) "Por pagar" else "Pendiente",
                     value = formatCurrency(persona.restante.coerceAtLeast(0.0)),
                     modifier = Modifier.weight(1f),
                     alert = !persona.saldada
@@ -268,7 +274,7 @@ fun PersonaCard(
                         ) {
                             Icon(Icons.Filled.Payments, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Abonar")
+                            Text(if (esDeudaPropia) "Pagar" else "Abonar")
                         }
                     }
                 }
@@ -280,7 +286,7 @@ fun PersonaCard(
         AlertDialog(
             onDismissRequest = { mostrarDialogoPago = false },
             icon = { Icon(Icons.Filled.Payments, contentDescription = null) },
-            title = { Text("Registrar pago") },
+            title = { Text(if (esDeudaPropia) "Registrar pago realizado" else "Registrar pago") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     PrettyTextField(
@@ -374,7 +380,7 @@ fun PersonaCard(
             onDismissRequest = { mostrarDialogoEliminar = false },
             icon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
             title = { Text("Eliminar deuda") },
-            text = { Text("Se borrará la deuda de ${persona.nombre} y dejará de mostrarse en tu historial.") },
+            text = { Text(persona.deleteMessage(esDeudaPropia)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -514,6 +520,7 @@ fun DialogoEditarDeuda(
     viewModel: PersonasViewModel,
     onCerrar: () -> Unit
 ) {
+    val esDeudaPropia = DebtMode.fromStorage(persona.modo) == DebtMode.POR_PAGAR
     var nombre by remember { mutableStateOf(persona.nombre) }
     var aumentoDeuda by remember { mutableStateOf("") }
     var aumentarInteres by remember { mutableStateOf("") }
@@ -536,13 +543,13 @@ fun DialogoEditarDeuda(
     AlertDialog(
         onDismissRequest = onCerrar,
         icon = { Icon(Icons.Filled.Edit, contentDescription = null) },
-        title = { Text("Actualizar deuda") },
+        title = { Text(if (esDeudaPropia) "Actualizar deuda que debes" else "Actualizar deuda por cobrar") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 PrettyTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
-                    label = "Nombre del deudor",
+                    label = if (esDeudaPropia) "A quién le debes" else "Nombre del deudor",
                     keyboardType = KeyboardType.Text,
                     icon = Icons.Filled.Person
                 )
@@ -698,3 +705,10 @@ private fun DialogSelector(
         }
     }
 }
+
+private fun DebtEntity.deleteMessage(esDeudaPropia: Boolean): String =
+    if (esDeudaPropia) {
+        "Se borrará la deuda con $nombre y dejará de mostrarse en tu historial."
+    } else {
+        "Se borrará la deuda de $nombre y dejará de mostrarse en tu historial."
+    }

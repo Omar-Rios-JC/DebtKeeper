@@ -147,8 +147,13 @@ data class TutorialStep(
 
 val tutorialSteps = listOf(
     TutorialStep(
+        title = "Cambiar Módulo",
+        description = "Usa el switch de la pantalla principal para alternar entre deudas por cobrar y deudas que tú debes.",
+        icon = Icons.Default.List
+    ),
+    TutorialStep(
         title = "Agregar Deudor",
-        description = "Toca el botón '+' en la pantalla principal para registrar una nueva persona.",
+        description = "Toca el botón '+' en el módulo activo para registrar una nueva deuda.",
         icon = Icons.Default.Add
     ),
     TutorialStep(

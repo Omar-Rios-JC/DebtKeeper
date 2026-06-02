@@ -100,8 +100,9 @@ class MainActivity : ComponentActivity() {
                     composable("lista") {
                         ListaPantalla(navController, viewModel)
                     }
-                    composable("agregar") {
-                        AgregarPersonaPantalla(navController, viewModel)
+                    composable("agregar/{modo}") { backStackEntry ->
+                        val modo = DebtMode.fromStorage(backStackEntry.arguments?.getString("modo"))
+                        AgregarPersonaPantalla(navController, viewModel, modo)
                     }
                 }
             }
@@ -119,7 +120,9 @@ fun ListaPantalla(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val personas = viewModel.listaPersonas
-    val personasAgrupadas = personas.groupBy { it.nombre.trim().ifBlank { "Sin nombre" } }
+    var modoActual by remember { mutableStateOf(DebtMode.POR_COBRAR) }
+    val deudasDelModo = personas.filter { DebtMode.fromStorage(it.modo) == modoActual }
+    val personasAgrupadas = deudasDelModo.groupBy { it.nombre.trim().ifBlank { "Sin nombre" } }
     val mostrarSaldadas = UserPreferences.mostrarSaldadas(context).collectAsState(initial = true).value
     val tutorialCompletado = UserPreferences.tutorialCompletado(context).collectAsState(initial = true).value
     var mostrarTutorial by remember { mutableStateOf(false) }
@@ -138,7 +141,7 @@ fun ListaPantalla(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("DebtKeeper", style = MaterialTheme.typography.titleLarge)
                         Text(
-                            "Control claro de tus préstamos",
+                            "Control claro de tus deudas",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.82f)
                         )
@@ -161,9 +164,9 @@ fun ListaPantalla(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { navController.navigate("agregar") },
+                onClick = { navController.navigate("agregar/${modoActual.storageValue}") },
                 icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Nueva deuda") },
+                text = { Text(modoActual.addActionText()) },
                 containerColor = MaterialTheme.colorScheme.tertiary,
                 contentColor = MaterialTheme.colorScheme.onTertiary
             )
@@ -188,7 +191,14 @@ fun ListaPantalla(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                DebtSummaryHeader(personas = personas)
+                DebtSummaryHeader(personas = deudasDelModo, modo = modoActual)
+            }
+
+            item {
+                DebtModeSwitch(
+                    modoActual = modoActual,
+                    onModoChange = { modoActual = it }
+                )
             }
 
             item {
@@ -199,12 +209,12 @@ fun ListaPantalla(
                 ) {
                     Column {
                         Text(
-                            "Deudas activas",
+                            modoActual.activeSectionTitle(),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onBackground
                         )
                         Text(
-                            "${personas.count { !it.saldada }} pendientes",
+                            "${deudasDelModo.count { !it.saldada }} pendientes",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -227,9 +237,12 @@ fun ListaPantalla(
                 }
             }
 
-            if (personas.isEmpty()) {
+            if (deudasDelModo.isEmpty()) {
                 item {
-                    EmptyDebtState(onAdd = { navController.navigate("agregar") })
+                    EmptyDebtState(
+                        modo = modoActual,
+                        onAdd = { navController.navigate("agregar/${modoActual.storageValue}") }
+                    )
                 }
             } else {
                 personasAgrupadas.forEach { (nombre, deudas) ->
@@ -245,7 +258,7 @@ fun ListaPantalla(
                 }
 
                 if (mostrarSaldadas) {
-                    val saldadas = personas.filter { it.saldada }
+                    val saldadas = deudasDelModo.filter { it.saldada }
                     if (saldadas.isNotEmpty()) {
                         item {
                             HorizontalDivider(Modifier.padding(top = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
@@ -264,7 +277,7 @@ fun ListaPantalla(
 }
 
 @Composable
-private fun DebtSummaryHeader(personas: List<DebtEntity>) {
+private fun DebtSummaryHeader(personas: List<DebtEntity>, modo: DebtMode) {
     val totalPrestado = personas.sumOf { it.totalDeuda }
     val pendiente = personas.filterNot { it.saldada }.sumOf { it.restante.coerceAtLeast(0.0) }
     val saldadas = personas.count { it.saldada }
@@ -297,7 +310,7 @@ private fun DebtSummaryHeader(personas: List<DebtEntity>) {
                 ) {
                     Column {
                         Text(
-                            "Pendiente por cobrar",
+                            modo.pendingSummaryTitle(),
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.82f)
                         )
@@ -322,7 +335,7 @@ private fun DebtSummaryHeader(personas: List<DebtEntity>) {
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SummaryChip(label = "Total", value = formatCurrency(totalPrestado))
+                    SummaryChip(label = modo.totalSummaryLabel(), value = formatCurrency(totalPrestado))
                     SummaryChip(label = "Activas", value = personas.count { !it.saldada }.toString())
                     SummaryChip(label = "Saldadas", value = saldadas.toString())
                 }
@@ -350,6 +363,66 @@ private fun SummaryChip(label: String, value: String) {
 }
 
 @Composable
+private fun DebtModeSwitch(
+    modoActual: DebtMode,
+    onModoChange: (DebtMode) -> Unit
+) {
+    val estaEnModoPagar = modoActual == DebtMode.POR_PAGAR
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        tonalElevation = 1.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column {
+                Text(
+                    "Modo actual",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    modoActual.screenTitle(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    "Por cobrar",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (!estaEnModoPagar) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(8.dp))
+                Switch(
+                    checked = estaEnModoPagar,
+                    onCheckedChange = { activo ->
+                        onModoChange(if (activo) DebtMode.POR_PAGAR else DebtMode.POR_COBRAR)
+                    }
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Por pagar",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (estaEnModoPagar) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun SectionTitle(title: String, subtitle: String) {
     Column(Modifier.padding(top = 4.dp)) {
         Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -358,7 +431,7 @@ private fun SectionTitle(title: String, subtitle: String) {
 }
 
 @Composable
-private fun EmptyDebtState(onAdd: () -> Unit) {
+private fun EmptyDebtState(modo: DebtMode, onAdd: () -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -382,13 +455,13 @@ private fun EmptyDebtState(onAdd: () -> Unit) {
                 )
             }
             Text(
-                "Aún no hay deudas registradas",
+                modo.emptyTitle(),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
             Text(
-                "Agrega tu primera deuda y empieza a ver pagos, saldos e historial en un solo lugar.",
+                modo.emptyDescription(),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -396,7 +469,7 @@ private fun EmptyDebtState(onAdd: () -> Unit) {
             Button(onClick = onAdd) {
                 Icon(Icons.Default.Add, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Agregar deuda")
+                Text(modo.addButtonText())
             }
         }
     }
@@ -409,31 +482,42 @@ fun TutorialDialog(onDismiss: () -> Unit) {
             OnboardingStep(
                 icon = Icons.Filled.Info,
                 title = "Bienvenido a DebtKeeper",
-                description = "Esta app te ayuda a llevar el control de las personas que te deben dinero, los pagos que hacen y el saldo que falta por cobrar.",
+                description = "Esta app te ayuda a llevar el control de lo que te deben y de las deudas que tú debes pagar.",
                 bullets = listOf(
-                    "Tus deudas se organizan por persona.",
+                    "Tus deudas se organizan por persona o acreedor.",
                     "Puedes registrar abonos y ver el historial.",
-                    "Las deudas liquidadas pasan a la seccion de historial."
+                    "Las deudas liquidadas pasan a la sección de historial."
+                )
+            ),
+            OnboardingStep(
+                icon = Icons.Filled.CheckCircle,
+                title = "Cambia de módulo",
+                description = "Usa el switch de la pantalla principal para alternar entre deudas por cobrar y deudas que tú debes.",
+                bullets = listOf(
+                    "Por cobrar mantiene el flujo actual: personas que te deben.",
+                    "Por pagar guarda a quién le debes, cuánto falta y tus pagos.",
+                    "Cada módulo conserva su propio resumen, lista e historial."
                 )
             ),
             OnboardingStep(
                 icon = Icons.Filled.AttachMoney,
                 title = "Resumen principal",
-                description = "La tarjeta superior resume el estado general de tus prestamos para que sepas rapidamente cuanto esta pendiente.",
+                description = "La tarjeta superior resume el estado general del módulo activo para que sepas rápidamente cuánto está pendiente.",
                 bullets = listOf(
-                    "Pendiente por cobrar suma el saldo restante de tus deudas activas.",
+                    "Pendiente por cobrar o por pagar suma el saldo restante de tus deudas activas.",
                     "Total muestra lo registrado, incluyendo intereses ya aplicados.",
-                    "Activas y saldadas te dicen cuantas deudas siguen abiertas o ya se pagaron."
+                    "Activas y saldadas te dicen cuántas deudas siguen abiertas o ya se pagaron."
                 )
             ),
             OnboardingStep(
                 icon = Icons.Filled.Add,
                 title = "Agregar una deuda",
-                description = "Usa el boton Nueva deuda para registrar a quien te debe, el monto inicial y, si aplica, un interes.",
+                description = "Usa el botón Nueva deuda desde el módulo activo para registrar el nombre, monto inicial y, si aplica, un interés.",
                 bullets = listOf(
-                    "Nombre: la persona que te debe.",
-                    "Monto: dinero prestado o saldo inicial.",
-                    "Calcular interes: opcion para agregar un cargo fijo por periodo."
+                    "Por cobrar: nombre de la persona que te debe.",
+                    "Por pagar: nombre de a quién le debes.",
+                    "Monto: dinero prestado, saldo inicial o cantidad que debes.",
+                    "Calcular interés: opción para agregar un cargo fijo por periodo."
                 )
             ),
             OnboardingStep(
@@ -599,7 +683,7 @@ private fun TutorialProgressDots(total: Int, selected: Int) {
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AgregarPersonaPantalla(navController: NavHostController, viewModel: PersonasViewModel) {
+fun AgregarPersonaPantalla(navController: NavHostController, viewModel: PersonasViewModel, modo: DebtMode) {
     var nombre by remember { mutableStateOf("") }
     var monto by remember { mutableStateOf("") }
     var montoInteresAgregado by remember { mutableStateOf("") }
@@ -614,7 +698,7 @@ fun AgregarPersonaPantalla(navController: NavHostController, viewModel: Personas
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Nueva deuda") },
+                title = { Text(modo.newDebtTitle()) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -643,13 +727,13 @@ fun AgregarPersonaPantalla(navController: NavHostController, viewModel: Personas
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        "Registro rapido",
+                        "Registro rápido",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Text(
-                        "Captura el deudor, el monto y opcionalmente un interés fijo.",
+                        modo.formSubtitle(),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f)
                     )
@@ -659,7 +743,7 @@ fun AgregarPersonaPantalla(navController: NavHostController, viewModel: Personas
             DebtFormTextField(
                 value = nombre,
                 onValueChange = { nombre = it },
-                label = "Quién te debe",
+                label = modo.nameFieldLabel(),
                 icon = Icons.Filled.Person,
                 keyboardType = KeyboardType.Text
             )
@@ -692,7 +776,8 @@ fun AgregarPersonaPantalla(navController: NavHostController, viewModel: Personas
                         tasaInteres = interesAgregado,
                         plazoPagos = duracionPlazoPago,
                         saldada = false,
-                        tipoInteres = aplicacionInteres
+                        tipoInteres = aplicacionInteres,
+                        modo = modo.storageValue
                     )
                     viewModel.agregarPersona(nuevaPersona)
                     navController.popBackStack()
@@ -918,3 +1003,44 @@ fun formatCurrency(value: Double): String {
     val locale = Locale.Builder().setLanguage("es").setRegion("MX").build()
     return NumberFormat.getCurrencyInstance(locale).format(value)
 }
+
+private fun DebtMode.screenTitle(): String =
+    if (this == DebtMode.POR_PAGAR) "Deudas que debes" else "Deudas por cobrar"
+
+private fun DebtMode.pendingSummaryTitle(): String =
+    if (this == DebtMode.POR_PAGAR) "Pendiente por pagar" else "Pendiente por cobrar"
+
+private fun DebtMode.totalSummaryLabel(): String =
+    if (this == DebtMode.POR_PAGAR) "Total debido" else "Total prestado"
+
+private fun DebtMode.activeSectionTitle(): String =
+    if (this == DebtMode.POR_PAGAR) "Tus deudas activas" else "Deudas activas"
+
+private fun DebtMode.addActionText(): String =
+    if (this == DebtMode.POR_PAGAR) "Nueva por pagar" else "Nueva por cobrar"
+
+private fun DebtMode.addButtonText(): String =
+    if (this == DebtMode.POR_PAGAR) "Agregar deuda que debo" else "Agregar deuda por cobrar"
+
+private fun DebtMode.emptyTitle(): String =
+    if (this == DebtMode.POR_PAGAR) "Aún no registras deudas que debes" else "Aún no hay deudas por cobrar"
+
+private fun DebtMode.emptyDescription(): String =
+    if (this == DebtMode.POR_PAGAR) {
+        "Agrega a quién le debes, el monto y los pagos que vas haciendo para llevar tu saldo al día."
+    } else {
+        "Agrega tu primera deuda por cobrar y empieza a ver pagos, saldos e historial en un solo lugar."
+    }
+
+private fun DebtMode.newDebtTitle(): String =
+    if (this == DebtMode.POR_PAGAR) "Nueva deuda que debes" else "Nueva deuda por cobrar"
+
+private fun DebtMode.formSubtitle(): String =
+    if (this == DebtMode.POR_PAGAR) {
+        "Captura a quién le debes, el monto y opcionalmente un interés fijo."
+    } else {
+        "Captura el deudor, el monto y opcionalmente un interés fijo."
+    }
+
+private fun DebtMode.nameFieldLabel(): String =
+    if (this == DebtMode.POR_PAGAR) "A quién le debes" else "Quién te debe"

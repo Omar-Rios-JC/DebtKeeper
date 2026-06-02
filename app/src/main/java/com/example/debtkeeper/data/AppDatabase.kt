@@ -9,7 +9,7 @@ import androidx.room.TypeConverters
         DebtEntity::class,
         PaymentEntity::class   // 👈 SE AGREGA
     ],
-    version = 3               // 👈 SE SUBE LA VERSIÓN
+    version = 4               // 👈 SE SUBE LA VERSIÓN
 )
 //@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
